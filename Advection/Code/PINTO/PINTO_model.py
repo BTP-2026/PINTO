@@ -2,7 +2,7 @@ import os
 get_wd = os.getcwd()
 os.chdir(get_wd)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -16,7 +16,10 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 # Data PreProcessing
-data_dir = '/mnt/PDE_Bench_data/1D_Advection_sols_beta01.hdf5'
+data_dir = '/mnt/PDE_Bench_data/1D_Advection_sols_beta01.hdf5' # change the directory to your
+                                                               # local directory where
+                                                               # PDEBENCH Advection file presents.
+
 train_indices = np.arange(80)
 test_indices = [185, 90, 99, 100]
 val_indices = np.arange(80, 100)
@@ -36,6 +39,8 @@ ivals = {'xin': xd, 'tin': td, 'xb': xb, 'tb': tb, 'xbc_in': xbc_in, 'tbc_in': t
 ovals = {'ub': ub, 'u_init': u_init, 'uval': uval}
 parameters = {'beta': 0.1, 'test_ind': test_indices}
 
+
+# Building the PINO model using functional API
 initializer = tf.keras.initializers.GlorotUniform(seed=1234)
 
 
@@ -75,13 +80,13 @@ pe = get_model(model_name='BPE',
                layer_names='bpe_layer',
                layer_units=[64, 64], activation='tanh')(pe)
 
-# value transformation for geometry
+# value transformation for boundary
 input5 = layers.Input(shape=(None, 1,), name='ubc_layer')
 ce = layers.Dense(units=64, kernel_initializer=initializer, activation='tanh',
                   name='bve_layer_1')(input5)
 ce = layers.Dense(units=64, kernel_initializer=initializer, activation='tanh',
                   name='bve_layer_2')(ce)
-
+# Performing Cross attention mechanism
 spk = layers.MultiHeadAttention(num_heads=2, key_dim=64)(query=spq, key=pe, value=ce)
 spk = layers.Add()([residual, spk])
 residual = spk
@@ -114,17 +119,19 @@ metrics = {"loss": keras.metrics.Mean(name='loss'),
 # Training the model
 initial_learning_rate = 1e-5
 
+## Defining different Learning rate schedulers
+## Exponential Decay
 # decay_steps = 10000
 # decay_rate = 0.9
 # staircase = True
 # step_lim = 10000
-#
 # lr_schedule = keras.optimizers.schedules.ExponentialDecay(
 #     initial_learning_rate=initial_learning_rate,
 #     decay_steps=decay_steps,
 #     decay_rate=decay_rate,
 #     staircase=staircase)
 
+## Modified Exponential Decay
 # lr_schedule = MyRLSchedule(
 #     initial_learning_rate=initial_learning_rate,
 #     decay_steps=decay_steps,
@@ -139,7 +146,8 @@ model.summary()
 model_dict = {"nn_model": model}
 batches = 10
 
-cm = PdeModel(inputs=ivals, outputs=ovals, get_models=model_dict, loss_fn=loss_fn, optimizer=optimizer, metrics=metrics,
+cm = PdeModel(inputs=ivals, outputs=ovals, get_models=model_dict, loss_fn=loss_fn,
+              optimizer=optimizer, metrics=metrics,
               parameters=parameters, batches=batches)
 
 epochs = 20000
@@ -163,8 +171,7 @@ configuration = {
     "trainable_parameters": np.sum([np.prod(lay.shape) for lay in model.trainable_weights]),
     "non_trainable_parameters": np.sum([np.prod(lay.shape) for lay in model.non_trainable_weights]),
     'test_indices': test_indices,
-    "sequence_length": seq_len,
-    "additional_info": 'using add for residual connection and training wihtout boundary loss'}
+    "sequence_length": seq_len}
 
 print(configuration)
 
