@@ -16,7 +16,8 @@ tf.random.set_seed(1234)
 
 
 class PdeModel:
-    def __init__(self, inputs, outputs, get_models, loss_fn, optimizer, metrics, parameters, batches=1, val_batches=50):
+    def __init__(self, inputs, outputs, get_models, loss_fn, optimizer, metrics, parameters,
+                 batches=1, val_batches=50):
 
         self.inputs = inputs
         self.outputs = outputs

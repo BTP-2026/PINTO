@@ -16,10 +16,9 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 # Data PreProcessing
-data_dir = '/mnt/PDE_Bench_data/1D_Advection_sols_beta01.hdf5' # change the directory to your
-                                                               # local directory where
-                                                               # PDEBENCH Advection file presents.
+data_dir = None # change the directory to your local directory where PDEBENCH Advection file presents.
 
+# hyperparameters for data generation
 train_indices = np.arange(80)
 test_indices = [185, 90, 99, 100]
 val_indices = np.arange(80, 100)
@@ -40,9 +39,9 @@ ovals = {'ub': ub, 'u_init': u_init, 'uval': uval}
 parameters = {'beta': 0.1, 'test_ind': test_indices}
 
 
-# Building the PINO model using functional API
-initializer = tf.keras.initializers.GlorotUniform(seed=1234)
+# Building the PINTO model using functional API
 
+initializer = tf.keras.initializers.GlorotUniform(seed=1234)
 
 def get_model(model_name, layer_names, layer_units, activation='swish'):
     sq = keras.Sequential(name=model_name)
@@ -119,7 +118,8 @@ metrics = {"loss": keras.metrics.Mean(name='loss'),
 # Training the model
 initial_learning_rate = 1e-5
 
-## Defining different Learning rate schedulers
+## Defining different Learning rate schedulers for different experiments
+
 ## Exponential Decay
 # decay_steps = 10000
 # decay_rate = 0.9
@@ -179,6 +179,10 @@ if wb:
     wandb.init(project='Finalising_results', config=configuration)
 
 log_dir = 'output/Advection_PINTO/'
+try:
+    os.makedirs(log_dir)
+except FileExistsError:
+    pass
 
 history = cm.run(epochs=epochs, idx_sensor=idx_si, ddir=data_dir, log_dir=log_dir,
                  wb=wb, verbose_freq=vf, plot_freq=pf)
