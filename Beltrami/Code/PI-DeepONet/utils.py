@@ -2,7 +2,26 @@ import numpy as np
 from pyDOE import lhs
 
 
-def get_ibc_and_inner_data(start, stop, init_samples, bound_points, domain_samples, sensor_samples, re):
+def get_ibc_and_inner_data(start, stop, init_samples, bound_points, domain_samples, seq_len, re):
+    # inputs:
+    # start: list of starting points for the domain [x_start, y_start, t_start]
+    # stop: list of ending points for the domain [x_end, y_end, t_end]
+    # init_samples: number of initial condition samples
+    # bound_points: number of boundary points
+    # domain_samples: number of domain samples
+    # seq_len: length of the sequence for the model
+    # re: list of Reynolds numbers
+
+    # outputs:
+    # xd, yd, td: domain coordinates on which the PDE is imposed
+    # xb, yb, tb: boundary coordinates that should satisfy boundary conditions
+    # u_bound, v_bound, p_bound: boundary conditions
+    # xbc_in, ybc_in, tbc_in - input sequence for the BPE unit corresponding to the domain points
+    # ubc_in, vbc_in, pbc_in: input sequence for the BVE unit corresponding to the domain points
+    # xbc_b, ybc_b, tbc_b - input sequence for the BPE unit corresponding to the boundary points
+    # ubc_b, vbc_b, pbc_b: input sequence for the BVE unit corresponding to the boundary points
+
+    #  getting the domain points using latin hypercube sampling
     lower_bound = np.array(start).reshape((1, -1))
     upper_bound = np.array(stop).reshape((1, -1))
 
@@ -35,9 +54,6 @@ def get_ibc_and_inner_data(start, stop, init_samples, bound_points, domain_sampl
 
     x_bound = np.concatenate((bound_init, bound_left, bound_right, bound_top, bound_bottom), axis=0)
 
-    # print(f"rank of x_dom should be 2 {x_dom.shape}")
-    # print(f"rank of x_bound should be 2 {x_bound.shape}")
-
     Xe_dom = np.repeat(np.expand_dims(x_dom, axis=0), len(re), axis=0)
     nue_d = np.ones_like(Xe_dom[:, :, 0:1]) * (np.array(re).reshape((-1, 1, 1)))
     Xe_bound = np.repeat(np.expand_dims(x_bound, axis=0), len(re), axis=0)
@@ -60,32 +76,33 @@ def get_ibc_and_inner_data(start, stop, init_samples, bound_points, domain_sampl
     tb = Xe_bound[:, :, 2:]
     assert (tb.shape == nue_b.shape)
 
+    # getting the boundary values from analytical solution
     u_bound, v_bound, p_bound = get_fvalues(xb, yb, tb, nue_b)
 
-    # Sensor Data
+    # getting input sequence for BPE unit
     # left boundary points
-    yt_ls = (upper_bound - lower_bound)[0:, 1:] * lhs(2, sensor_samples) + lower_bound[0:, 1:]
-    x_ls = np.ones((sensor_samples, 1)) * lower_bound[0, 0]
+    yt_ls = (upper_bound - lower_bound)[0:, 1:] * lhs(2, seq_len) + lower_bound[0:, 1:]
+    x_ls = np.ones((seq_len, 1)) * lower_bound[0, 0]
     sen_left = np.concatenate((x_ls, yt_ls), axis=1)
 
     # right boundary points
-    yt_rs = (upper_bound - lower_bound)[0:, 1:] * lhs(2, sensor_samples) + lower_bound[0:, 1:]
-    x_rs = np.ones((sensor_samples, 1)) * upper_bound[0, 0]
+    yt_rs = (upper_bound - lower_bound)[0:, 1:] * lhs(2, seq_len) + lower_bound[0:, 1:]
+    x_rs = np.ones((seq_len, 1)) * upper_bound[0, 0]
     sen_right = np.concatenate((x_rs, yt_rs), axis=1)
 
     # top boundary points
-    xt_ts = (upper_bound - lower_bound)[0:, 0::2] * lhs(2, sensor_samples) + lower_bound[0:, 0::2]
-    y_ts = np.ones((sensor_samples, 1)) * upper_bound[0, 1]
+    xt_ts = (upper_bound - lower_bound)[0:, 0::2] * lhs(2, seq_len) + lower_bound[0:, 0::2]
+    y_ts = np.ones((seq_len, 1)) * upper_bound[0, 1]
     sen_top = np.concatenate((xt_ts[:, 0:1], y_ts, xt_ts[:, 1:]), axis=1)
 
     # bottom boundary points
-    xt_bs = (upper_bound - lower_bound)[0:, 0::2] * lhs(2, sensor_samples) + lower_bound[0:, 0::2]
-    y_bs = np.ones((sensor_samples, 1)) * lower_bound[0, 1]
+    xt_bs = (upper_bound - lower_bound)[0:, 0::2] * lhs(2, seq_len) + lower_bound[0:, 0::2]
+    y_bs = np.ones((seq_len, 1)) * lower_bound[0, 1]
     sen_bottom = np.concatenate((xt_bs[:, 0:1], y_bs, xt_bs[:, 1:]), axis=1)
 
     # Initial Condition
-    xy_is = (upper_bound - lower_bound)[0:, :2] * lhs(2, sensor_samples) + lower_bound[0:, :2]
-    t_is = np.ones((sensor_samples, 1)) * lower_bound[0, 2]
+    xy_is = (upper_bound - lower_bound)[0:, :2] * lhs(2, seq_len) + lower_bound[0:, :2]
+    t_is = np.ones((seq_len, 1)) * lower_bound[0, 2]
     sen_init = np.concatenate((xy_is, t_is), axis=1)
 
     X_sen = np.concatenate((sen_init, sen_left, sen_right, sen_top, sen_bottom), axis=0)
@@ -110,19 +127,19 @@ def get_ibc_and_inner_data(start, stop, init_samples, bound_points, domain_sampl
     ins = xd.shape[1]
     bs = xb.shape[1]
 
-    xbc_in = np.repeat(x_sensor, ins, axis=1).reshape((-1, 5 * sensor_samples))
-    ybc_in = np.repeat(y_sensor, ins, axis=1).reshape((-1, 5 * sensor_samples))
-    tbc_in = np.repeat(t_sensor, ins, axis=1).reshape((-1, 5 * sensor_samples))
-    ubc_in = np.repeat(u_sensor, ins, axis=1).reshape((-1, 5 * sensor_samples))
-    vbc_in = np.repeat(v_sensor, ins, axis=1).reshape((-1, 5 * sensor_samples))
-    pbc_in = np.repeat(p_sensor, ins, axis=1).reshape((-1, 5 * sensor_samples))
+    xbc_in = np.repeat(x_sensor, ins, axis=1).reshape((-1, 5 * seq_len))
+    ybc_in = np.repeat(y_sensor, ins, axis=1).reshape((-1, 5 * seq_len))
+    tbc_in = np.repeat(t_sensor, ins, axis=1).reshape((-1, 5 * seq_len))
+    ubc_in = np.repeat(u_sensor, ins, axis=1).reshape((-1, 5 * seq_len))
+    vbc_in = np.repeat(v_sensor, ins, axis=1).reshape((-1, 5 * seq_len))
+    pbc_in = np.repeat(p_sensor, ins, axis=1).reshape((-1, 5 * seq_len))
 
-    xbc_b = np.repeat(x_sensor, bs, axis=1).reshape((-1, 5 * sensor_samples))
-    ybc_b = np.repeat(y_sensor, bs, axis=1).reshape((-1, 5 * sensor_samples))
-    tbc_b = np.repeat(t_sensor, bs, axis=1).reshape((-1, 5 * sensor_samples))
-    ubc_b = np.repeat(u_sensor, bs, axis=1).reshape((-1, 5 * sensor_samples))
-    vbc_b = np.repeat(v_sensor, bs, axis=1).reshape((-1, 5 * sensor_samples))
-    pbc_b = np.repeat(p_sensor, bs, axis=1).reshape((-1, 5 * sensor_samples))
+    xbc_b = np.repeat(x_sensor, bs, axis=1).reshape((-1, 5 * seq_len))
+    ybc_b = np.repeat(y_sensor, bs, axis=1).reshape((-1, 5 * seq_len))
+    tbc_b = np.repeat(t_sensor, bs, axis=1).reshape((-1, 5 * seq_len))
+    ubc_b = np.repeat(u_sensor, bs, axis=1).reshape((-1, 5 * seq_len))
+    vbc_b = np.repeat(v_sensor, bs, axis=1).reshape((-1, 5 * seq_len))
+    pbc_b = np.repeat(p_sensor, bs, axis=1).reshape((-1, 5 * seq_len))
 
     return (xd.reshape((-1, 1)), yd.reshape((-1, 1)), td.reshape((-1, 1)),
             xb.reshape((-1, 1)), yb.reshape((-1, 1)), tb.reshape((-1, 1)), u_bound.reshape((-1, 1)),

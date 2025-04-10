@@ -25,6 +25,7 @@ Detailed Documentation:
    https://indianinstituteofscience-my.sharepoint.com/:u:/g/personal/ksumanth_iisc_ac_in/EWeItMUTYulKit8tqgKnh44BzzUDxc-whoJadi2QjGLBuA?e=IYR3p0
 
    In a Code folder, you will find the three files Pde.py, utils.py, and model.py:
+
      PdeModel class documentation: (EquationType_Pde.py file in PINTO/DeepONets folder for each Numerical example)
         -Attributes
             - inputs: domain/boundary/initial coordinates for QPE units,
@@ -37,7 +38,6 @@ Detailed Documentation:
             - inner/bound/init_data: Tensorflow dataset object
             - batches
             - loss_tracker: metrics to track the various loss terms during training
-
         - Methods
             - __init__: constructor to initialize the attributes
             - create_data_pipeline: to create the tensorflow dataset for training/validation
@@ -56,4 +56,12 @@ Detailed Documentation:
             -prediction: to perform the prediction of the model for given input coordinates
             -get_plots: to get the plots of the model predictions at regular intervals (plot_freq in run method defines the interval to plot)
 
-     model.py
+     
+
+        utils.py file documentation
+            - contains the functions to create the input coordinates for QPE, BPE, and BVE units
+            - contains the functions to create the initial/boundary conditions for QPE, BPE, and BVE units
+     model.py file documentation
+        - building the PINTO/DeepONet model using the Tensorflow Functional API
+        - initiating the optimizer and loss function
+        - initializing the PdeModel object

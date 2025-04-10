@@ -1,4 +1,5 @@
 import os
+
 get_wd = os.getcwd()
 os.chdir(get_wd)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -16,11 +17,12 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 # Data PreProcessing
-data_dir = None # change the directory to your local directory where PDEBENCH Advection file presents.
+# getting data in required format from utils.py
+data_dir = None  # change the directory to your local directory where PDEBENCH Advection file presents.
 
 # hyperparameters for data generation
 train_indices = np.arange(80)
-test_indices = [185, 90, 99, 100]
+test_indices = [85, 90, 99, 100]
 val_indices = np.arange(80, 100)
 seq_len = 60
 domain_samples = 2000
@@ -38,10 +40,9 @@ ivals = {'xin': xd, 'tin': td, 'xb': xb, 'tb': tb, 'xbc_in': xbc_in, 'tbc_in': t
 ovals = {'ub': ub, 'u_init': u_init, 'uval': uval}
 parameters = {'beta': 0.1, 'test_ind': test_indices}
 
-
 # Building the PINTO model using functional API
-
 initializer = tf.keras.initializers.GlorotUniform(seed=1234)
+
 
 def get_model(model_name, layer_names, layer_units, activation='swish'):
     sq = keras.Sequential(name=model_name)
@@ -52,12 +53,12 @@ def get_model(model_name, layer_names, layer_units, activation='swish'):
     return sq
 
 
+# Lifting operator for query values
 input1 = layers.Input(shape=(1,), name='x_input')
 rescale_input1 = layers.Rescaling(scale=2, offset=-1.)(input1)
 input2 = layers.Input(shape=(1,), name='t_input')
 rescale_input2 = layers.Rescaling(scale=2., offset=-1.)(input2)
 
-# transforming query values
 sp_trans = get_model(model_name='spatial_transformation',
                      layer_names='spatial_layer',
                      layer_units=[64, 64], activation='tanh')
@@ -67,25 +68,25 @@ sp = layers.Reshape(target_shape=(1, -1))(sp)
 spq = sp_trans(sp)
 residual = spq
 
-# key transformation for boundary
+# MLP for key values (initial coordinates)
 input3 = layers.Input(shape=(None, 1,), name='Xbc_layer')
 rescale_input3 = layers.Rescaling(scale=2., offset=-1)(input3)
 input4 = layers.Input(shape=(None, 1,), name='tbc_layer')
 rescale_input4 = layers.Rescaling(scale=2., offset=-1.)(input4)
 
-# position encoding
 pe = layers.Concatenate()([rescale_input3, rescale_input4])
 pe = get_model(model_name='BPE',
                layer_names='bpe_layer',
                layer_units=[64, 64], activation='tanh')(pe)
 
-# value transformation for boundary
+# MLP for value values (initial conditions)
 input5 = layers.Input(shape=(None, 1,), name='ubc_layer')
 ce = layers.Dense(units=64, kernel_initializer=initializer, activation='tanh',
                   name='bve_layer_1')(input5)
 ce = layers.Dense(units=64, kernel_initializer=initializer, activation='tanh',
                   name='bve_layer_2')(ce)
-# Performing Cross attention mechanism
+
+# Cross Attention units
 spk = layers.MultiHeadAttention(num_heads=2, key_dim=64)(query=spq, key=pe, value=ce)
 spk = layers.Add()([residual, spk])
 residual = spk
@@ -98,14 +99,18 @@ spk = layers.Add()([residual, spk])
 spk = layers.Dense(units=64, activation='tanh', kernel_initializer=initializer)(spk)
 ct = layers.Flatten()(spk)
 residual = ct
+
+# Projection operator for u function space
 ou = get_model(model_name='U', layer_units=[64, 64],
                layer_names='ou', activation='tanh')(ct)
 ou = layers.Add()([residual, ou])
 ou = layers.Dense(units=1, kernel_initializer=initializer, name='output_u')(ou)
 
+# building the PINTO model
 model = keras.Model([input1, input2, input3, input4, input5],
                     [ou])
 
+# metrics to track the performance of the model during training
 metrics = {"loss": keras.metrics.Mean(name='loss'),
            "bound_loss": keras.metrics.Mean(name='bound_loss'),
            "init_loss": keras.metrics.Mean(name='init_loss'),
@@ -119,26 +124,19 @@ metrics = {"loss": keras.metrics.Mean(name='loss'),
 initial_learning_rate = 1e-5
 
 ## Defining different Learning rate schedulers for different experiments
-
 ## Exponential Decay
+
 # decay_steps = 10000
 # decay_rate = 0.9
 # staircase = True
-# step_lim = 10000
+
 # lr_schedule = keras.optimizers.schedules.ExponentialDecay(
 #     initial_learning_rate=initial_learning_rate,
 #     decay_steps=decay_steps,
 #     decay_rate=decay_rate,
 #     staircase=staircase)
 
-## Modified Exponential Decay
-# lr_schedule = MyRLSchedule(
-#     initial_learning_rate=initial_learning_rate,
-#     decay_steps=decay_steps,
-#     higher_decay_rate=decay_rate[0],
-#     lower_decay_rate=decay_rate[1],
-#     staircase=staircase, step_lim=step_lim)
-
+# initiating the optimizer and loss function
 optimizer = keras.optimizers.Adam(learning_rate=initial_learning_rate)
 loss_fn = keras.losses.MeanSquaredError()
 
@@ -146,14 +144,15 @@ model.summary()
 model_dict = {"nn_model": model}
 batches = 10
 
+# initiating the PdeModel class
 cm = PdeModel(inputs=ivals, outputs=ovals, get_models=model_dict, loss_fn=loss_fn,
               optimizer=optimizer, metrics=metrics,
               parameters=parameters, batches=batches)
 
 epochs = 20000
-vf = 100
-pf = 1000
-wb = True
+vf = 100  # verbose frequency
+pf = 1000  # plot frequency
+wb = True  # wandb logging
 
 configuration = {
     '#_total_initial_and_boundary_points': len(xb),
@@ -166,7 +165,7 @@ configuration = {
     # 'staircase': staircase,
     "batches": batches,
     "Epochs": epochs,
-    "Activation": 'tanh',
+    "Activation": 'swish',
     "model_name": 'Advection_model',
     "trainable_parameters": np.sum([np.prod(lay.shape) for lay in model.trainable_weights]),
     "non_trainable_parameters": np.sum([np.prod(lay.shape) for lay in model.non_trainable_weights]),

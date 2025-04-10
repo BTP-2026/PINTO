@@ -3,34 +3,33 @@ from pyDOE import lhs
 import tensorflow as tf
 
 
-def get_ibc_and_inner_data(start, stop, boundary_samples, domain_samples, sensor_samples,
+def get_ibc_and_inner_data(start, stop, boundary_samples, domain_samples, seq_len,
                            top_velocities):
-    # Boundary Points
-    # xdisc = np.linspace(start=start, stop=stop, num=grid_size)
-    # ydisc = np.linspace(start=stop, stop=start, num=grid_size)
-    #
-    # X, Y = np.meshgrid(xdisc, ydisc)
-    #
-    # Xe = np.repeat(np.expand_dims(X, axis=0), len(top_velocities), axis=0)
-    # Ye = np.repeat(np.expand_dims(Y, axis=0), len(top_velocities), axis=0)
-    #
-    # u = np.zeros_like(Xe)
-    # u[:, 0:1, :] = np.array(top_velocities).reshape((len(top_velocities), 1, 1))
-    # V = np.zeros_like(Xe)
 
-    # grid_loc = np.hstack((X.flatten()[:, None], Y.flatten()[:, None]))
+    # inputs:
+    # start: float, start point for each axis
+    # stop: float, stop point for each axis
+    # boundary_samples: int, number of samples on the boundary
+    # domain_samples: int, number of samples in the domain
+    # seq_len: int, length of the sequence
+    # top_velocities: list of floats, velocities for the top boundary
 
-    # boundary conditions
+    # outputs:
+    # xr, yr: domain coordinates to impose PDE loss
+    # xb, yb: boundary coordinates to impose BC loss
+    # ub, vb: boundary conditions
+    # x_top, y_top: top boundary coordinates
+    # u_top, v_top: top boundary conditions
+    # xbc_in, ybc_in, ubc_in, vbc_in: input sequence for BPE, and BVE corresponding to the domain points
+    # xbc_b, ybc_b, ubc_b, vbc_b: input sequence for BPE, and BVE corresponding to the boundary points
+    # xbc_top, ybc_top, ubc_top, vbc_top: input sequence for BPE, and BVE corresponding to the top boundary points
+
+    # generating the boundary points
     x_top = np.repeat(np.expand_dims(np.random.uniform(start, stop, [boundary_samples, 1]), axis=0),
                       len(top_velocities), axis=0)
     y_top = np.ones_like(x_top) * stop
     u_top = np.ones_like(x_top) * np.array(top_velocities).reshape((len(top_velocities), 1, 1))
     v_top = np.zeros_like(x_top)
-
-    # x_top = np.transpose(Xe[:, 0:1, :], axes=[0, 2, 1])
-    # y_top = np.transpose(Ye[:, 0:1, :], axes=[0, 2, 1])
-    # u_top = np.transpose(u[:, 0:1, :], axes=[0, 2, 1])
-    # v_top = np.transpose(V[:, 0:1, :], axes=[0, 2, 1])
 
     x_bottom = np.repeat(np.expand_dims(np.random.uniform(start, stop, [boundary_samples, 1]), axis=0),
                          len(top_velocities), axis=0)
@@ -52,8 +51,7 @@ def get_ibc_and_inner_data(start, stop, boundary_samples, domain_samples, sensor
     u_right = np.zeros_like(x_right)
     v_right = np.zeros_like(x_right)
 
-    # lower_bound = grid_loc.min()
-    # upper_bound = grid_loc.max()
+    # generating the domain points
     x_dom = (stop - start) * lhs(2, domain_samples) + start
     xd = np.repeat(np.expand_dims(x_dom[:, 0:1], axis=0), len(top_velocities), axis=0)
     yd = np.repeat(np.expand_dims(x_dom[:, 1:2], axis=0), len(top_velocities), axis=0)
@@ -66,7 +64,7 @@ def get_ibc_and_inner_data(start, stop, boundary_samples, domain_samples, sensor
     xr = np.concatenate((xd, xb), axis=1)
     yr = np.concatenate((yd, yb), axis=1)
 
-    x_st = np.repeat(np.expand_dims(np.random.uniform(start, stop, [1, sensor_samples]),
+    x_st = np.repeat(np.expand_dims(np.random.uniform(start, stop, [1, seq_len]),
                                     axis=0), len(top_velocities), axis=0)
     y_st = np.ones_like(x_st) * stop
     u_st = np.ones_like(x_st) * np.array(top_velocities).reshape((len(top_velocities), 1, 1))
@@ -74,44 +72,29 @@ def get_ibc_and_inner_data(start, stop, boundary_samples, domain_samples, sensor
 
     X_sen = np.concatenate((x_st[0:1, :, :].reshape(-1, 1), y_st[0:1, :, :].reshape(-1, 1)), axis=1)
 
-    # y_sl = np.random.uniform(start, stop, [len(top_velocities), 1, sensor_samples])
-    # x_sl = np.ones_like(y_sl) * start
-    # u_sl = np.zeros_like(x_sl)
-    # v_sl = np.zeros_like(x_sl)
-    #
-    # x_sb = np.random.uniform(start, stop, [len(top_velocities), 1, sensor_samples])
-    # y_sb = np.ones_like(x_sb) * start
-    # u_sb = np.zeros_like(x_sb)
-    # v_Sb = np.zeros_like(x_sb)
-    #
-    # y_sr = np.random.uniform(start, stop, [len(top_velocities), 1, sensor_samples])
-    # x_sr = np.ones_like(y_sr) * stop
-    # u_sr = np.zeros_like(x_sr)
-    # v_sr = np.zeros_like(x_sr)
-
     ins = xr.shape[1]
     bs = xb.shape[1]
     ints = x_top.shape[1]
 
-    xbc_in = np.repeat(x_st, ins, axis=1).reshape((-1, sensor_samples))
-    ybc_in = np.repeat(y_st, ins, axis=1).reshape((-1, sensor_samples))
-    ubc_in = np.repeat(u_st, ins, axis=1).reshape((-1, sensor_samples))
-    vbc_in = np.repeat(v_st, ins, axis=1).reshape((-1, sensor_samples))
+    xbc_in = np.repeat(x_st, ins, axis=1).reshape((-1, seq_len))
+    ybc_in = np.repeat(y_st, ins, axis=1).reshape((-1, seq_len))
+    ubc_in = np.repeat(u_st, ins, axis=1).reshape((-1, seq_len))
+    vbc_in = np.repeat(v_st, ins, axis=1).reshape((-1, seq_len))
 
-    xbc_b = np.repeat(x_st, bs, axis=1).reshape((-1, sensor_samples))
-    ybc_b = np.repeat(y_st, bs, axis=1).reshape((-1, sensor_samples))
-    ubc_b = np.repeat(u_st, bs, axis=1).reshape((-1, sensor_samples))
-    vbc_b = np.repeat(v_st, bs, axis=1).reshape((-1, sensor_samples))
+    xbc_b = np.repeat(x_st, bs, axis=1).reshape((-1, seq_len))
+    ybc_b = np.repeat(y_st, bs, axis=1).reshape((-1, seq_len))
+    ubc_b = np.repeat(u_st, bs, axis=1).reshape((-1, seq_len))
+    vbc_b = np.repeat(v_st, bs, axis=1).reshape((-1, seq_len))
 
-    xbc_top  = np.repeat(x_st, ints, axis=1).reshape((-1, sensor_samples))
-    ybc_top = np.repeat(y_st, ints, axis=1).reshape((-1, sensor_samples))
-    ubc_top = np.repeat(u_st, ints, axis=1).reshape((-1, sensor_samples))
-    vbc_top = np.repeat(v_st, ints, axis=1).reshape((-1, sensor_samples))
+    xbc_top  = np.repeat(x_st, ints, axis=1).reshape((-1, seq_len))
+    ybc_top = np.repeat(y_st, ints, axis=1).reshape((-1, seq_len))
+    ubc_top = np.repeat(u_st, ints, axis=1).reshape((-1, seq_len))
+    vbc_top = np.repeat(v_st, ints, axis=1).reshape((-1, seq_len))
 
     return (xr.reshape((-1, 1)), yr.reshape((-1, 1)), xb.reshape((-1, 1)), yb.reshape((-1, 1)), ub.reshape((-1, 1)),
             vb.reshape((-1, 1)), x_top.reshape((-1, 1)), y_top.reshape((-1, 1)), u_top.reshape((-1, 1)),
             v_top.reshape((-1, 1)), xbc_in, ybc_in, ubc_in, vbc_in, xbc_b, ybc_b, ubc_b, vbc_b,
-            xbc_top, ybc_top , ubc_top , vbc_top , X_sen)
+            xbc_top, ybc_top, ubc_top, vbc_top, X_sen)
 
 
 class SedLrSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):

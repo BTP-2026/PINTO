@@ -3,7 +3,28 @@ from scipy.io import loadmat
 from pyDOE import lhs
 
 
-def get_train_data(data_dir, domain_samples, sensor_samples, indices, val_indices):
+def get_train_data(data_dir, domain_samples, seq_len, indices, val_indices):
+
+    # Inputs:
+    # data_dir-> path to the data file (PDEBENCH Advection file as mentioned in the README file)
+    # seq_len-> length of the sequence for BPE and BVE units in an architecture
+    # domain_samples-> number of domain samples for imposing the Advection governing equation
+    # indices-> indices of initial conditions that are used for training the PINTO model
+    # val_indices-> indices of initial conditions that are used for validation/testing of the trained PINTO model
+
+    # Outputs:
+    # xd, td-> domain samples on which the Advection governing equation is imposed
+    # xb, tb, ub-> periodic boundary conditions
+    # x_init, t_init, u_init-> initial conditions
+    # xbc_in, tbc_in, ubc_in-> inputs for BPE, BVE units corresponding to the domain samples
+    # xbc_b, tbc_b, ubc_b-> inputs for BPE, BVE units corresponding to the periodic boundary conditions
+    # xbc_init, tbc_init, ubc_init-> inputs for BPE, BVE units corresponding to the initial conditions
+    # xval, tval, uval-> validation data
+    # xbc_val, tbc_val, ubc_val-> inputs for BPE, BVE units corresponding to the validation data
+
+    if data_dir is None:
+        raise ValueError("data_dir cannot be None please provide the path "
+                         "to the data file as mentioned in the README file.")
 
     data = loadmat(data_dir)
     tdisc = data['tspan']
@@ -16,7 +37,7 @@ def get_train_data(data_dir, domain_samples, sensor_samples, indices, val_indice
     Te = np.repeat(np.expand_dims(T, axis=0), len(indices), axis=0)
 
     # boundary sequence and values
-    idx_si = np.random.choice(len(X[0, :]), sensor_samples, replace=False)
+    idx_si = np.random.choice(len(X[0, :]), seq_len, replace=False)
     us = data['output'][indices]
     ui = data['input'][indices]
 
@@ -75,9 +96,9 @@ def get_train_data(data_dir, domain_samples, sensor_samples, indices, val_indice
     tval = TeV.reshape((len(val_indices), -1, 1))
     uval = us_val.reshape((len(val_indices), -1, 1))
     vals = xval.shape[1]
-    xbc_val = np.repeat(xv_sens, vals, axis=1).reshape((-1, sensor_samples))
-    tbc_val = np.repeat(tv_sens, vals, axis=1).reshape((-1, sensor_samples))
-    ubc_val = np.repeat(uv_sens, vals, axis=1).reshape((-1, sensor_samples))
+    xbc_val = np.repeat(xv_sens, vals, axis=1).reshape((-1, seq_len))
+    tbc_val = np.repeat(tv_sens, vals, axis=1).reshape((-1, seq_len))
+    ubc_val = np.repeat(uv_sens, vals, axis=1).reshape((-1, seq_len))
 
     return (xd.reshape((-1, 1)), td.reshape((-1, 1)), xb.reshape((-1, 1)), tb.reshape((-1, 1)), ub.reshape((-1, 1)),
             x_init.reshape((-1, 1)), t_init.reshape((-1, 1)), u_init.reshape((-1, 1)),

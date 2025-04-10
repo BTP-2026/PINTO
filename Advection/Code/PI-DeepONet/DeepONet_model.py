@@ -2,7 +2,7 @@ import os
 get_wd = os.getcwd()
 os.chdir(get_wd)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -16,19 +16,20 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 # Data PreProcessing
+# getting data in required format from utils.py
+data_dir = None # change the directory to your local directory where PDEBENCH Advection file presents.
 
-data_dir = '/mnt/PDE_Bench_data/1D_Advection_sols_beta01.hdf5'
-
+# hyperparameters for data generation
 train_indices = np.arange(80)
 test_indices = [85, 90, 99, 100]
 val_indices = np.arange(80, 100)
-sensor_samples = 80
+seq_len = 80
 domain_samples = 2000
 
 (xd, td, xb, tb, ub, x_init, t_init, u_init,
  xbc_in, tbc_in, ubc_in, xbc_b, tbc_b, ubc_b, xbc_init, tbc_init, ubc_init,
  idx_si, xval, tval, uval, xbc_val, tbc_val, ubc_val) = get_train_data(
-    data_dir, sensor_samples=sensor_samples, domain_samples=domain_samples, indices=train_indices,
+    data_dir, seq_len=seq_len, domain_samples=domain_samples, indices=train_indices,
     val_indices=val_indices)
 
 ivals = {'xin': xd, 'tin': td, 'xb': xb, 'tb': tb, 'xbc_in': xbc_in, 'tbc_in': tbc_in, 'ubc_in': ubc_in,
@@ -38,6 +39,7 @@ ivals = {'xin': xd, 'tin': td, 'xb': xb, 'tb': tb, 'xbc_in': xbc_in, 'tbc_in': t
 ovals = {'ub': ub, 'u_init': u_init, 'uval': uval}
 parameters = {'beta': 0.1, 'test_ind': test_indices}
 
+# Buidling the DeepONet model using functional API
 initializer = tf.keras.initializers.GlorotUniform(seed=1234)
 
 
@@ -51,13 +53,11 @@ def get_model(model_name, layer_names, layer_units, activation='swish'):
     return sq
 
 
-# Define the input layers
+# Branch network
 input1 = keras.Input(shape=(1,), name='x_input')
 rescale_input1 = layers.Rescaling(scale=2, offset=-1)(input1)
 input2 = keras.Input(shape=(1,), name='t_input')
 rescale_input2 = layers.Rescaling(scale=2, offset=-1)(input2)
-
-# transforming query values
 sp_trans = get_model(model_name='spatial_transformation',
                      layer_names='spatial_layer',
                      layer_units=[100, 100, 100, 100, 100, 100], activation='tanh')
@@ -65,19 +65,20 @@ sp_trans = get_model(model_name='spatial_transformation',
 sp = layers.Concatenate()([rescale_input1, rescale_input2])
 spq = sp_trans(sp)
 
-# key transformation for boundary
-input3 = keras.Input(shape=(sensor_samples,), name='ubc_layer')
-
+# Trunck network
+input3 = keras.Input(shape=(seq_len,), name='ubc_layer')
 ou = get_model(model_name='U',
                layer_units=[100, 100, 100, 100, 100, 100], layer_names='ou', activation='tanh')(input3)
+
+# output function
 ou = layers.Dot(axes=(1, 1))([ou, spq])
+# building DeepONets model
 model = keras.Model([input1, input2, input3], [ou])
 
 model.summary()
 
-initial_learning_rate = 1e-5
-
 # Training the model
+initial_learning_rate = 1e-5
 loss_fn = keras.losses.MeanSquaredError()
 optimizer = keras.optimizers.Adam(learning_rate=initial_learning_rate)  # change learning rate argument accordingly
 model_dict = {"nn_model": model}
@@ -113,7 +114,7 @@ configuration = {
     "trainable_parameters": np.sum([np.prod(lay.shape) for lay in model.trainable_weights]),
     "non_trainable_parameters": np.sum([np.prod(lay.shape) for lay in model.non_trainable_weights]),
     "kernel_initializer": 'GlorotUniform',
-    "sequence_length": sensor_samples,
+    "sequence_length": seq_len,
     'test_indices': test_indices,
     "sampling_strategy": 'lhs',
     "beta": parameters['beta']}
@@ -124,13 +125,15 @@ if wb:
     wandb.init(project='Finalising_results', config=configuration)
 
 log_dir = 'output/Advection_DeepONet/'
-sdata = pd.DataFrame({'sensor_indices': idx_si.flatten()})
-sdata.to_csv(path_or_buf=log_dir + 'sensor.csv')
+try:
+    os.makedirs(log_dir)
+except FileExistsError:
+    pass
 
 history = cm.run(epochs=epochs, idx_sensor=idx_si, ddir=data_dir, log_dir=log_dir,
                  wb=wb, verbose_freq=vf, plot_freq=pf)
-
-
+sdata = pd.DataFrame({'sensor_indices': idx_si.flatten()})
+sdata.to_csv(path_or_buf=log_dir + 'sensor.csv')
 if wb:
     wandb.finish()
 

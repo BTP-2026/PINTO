@@ -170,19 +170,12 @@ class PdeModel:
             tae = time.time() - start_time
             for key, value in logs.items():
                 history[key].append(value.numpy())
-            # if (epoch + 1)%1000 == 0:
-            #     if history['loss'][-1] <= history['loss'][-999]:
-            #         with warnings.catch_warnings():
-            #             warnings.simplefilter('ignore')
-            #             self.nn_model.save(save_path, save_format='tf')
             if (epoch + 1) % verbose_freq == 0:
                 print(f'''Epoch:{epoch + 1}/{epochs}''')
                 for key, value in logs.items():
-                    # history[key].append(value.numpy())
                     print(f"{key}: {value:.4f} ", end="")
                 print(f"Time: {tae / 60:.4f}min")
             if (epoch + 1) % plot_freq == 0:
-                # self.get_plots(epoch + 1, log_dir=log_dir, wb=wb)
                 for i in self.test_nue:
                     self.get_plots(epoch + 1, log_dir=log_dir, nue=i, wb=wb)
 
