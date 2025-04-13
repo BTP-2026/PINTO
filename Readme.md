@@ -60,9 +60,16 @@ __create the virtual environment using the following command__
 
   ## utils.py
   ### Data generation:
-   ![Data generation](Data_generation.png "data generation on 2D domain (X-Y)")
-   - contains the functions to create the input coordinates for QPE, BPE, and BVE units
-   - contains the functions to create the initial/boundary conditions for QPE, BPE, and BVE units
+   ![Data generation](Data_generation.png)
+        1. Collocation points are generated using Latin Hypercube Sampling (LHS) method
+        2. Boundary/initial points to impose boundary/initial conditions (either on grid points or randomly chosen points with the initial/boundary condition, 
+           __only for boundary and initial conditions simulation data file is used__)
+        3. boundary vector sequence points for BPE, and BVE units are chosen random on all sides of boundary 
+        4. For each collocation and initial/boundary point same boundary vector sequence is used as input to BPE and BVE units.
+        5. Above image give the example of data generation on 2D domain (X-Y).
+   - utils file has updated with detailed documentation in generating and creating the dataset to train the model.
+   - contains the functions to create the input coordinates for QPE, BPE, and BVE units.
+   - contains the functions to create the initial/boundary conditions for QPE, BPE, and BVE units.
   ## model.py
    - building the PINTO/DeepONet model using the Tensorflow Functional API
    - initiating the optimizer and loss function
