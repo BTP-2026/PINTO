@@ -151,9 +151,9 @@ batches = 5
 cm = PdeModel(inputs=ivals, outputs=ovals, get_models=model_dict, loss_fn=loss_fn, optimizer=optimizer, metrics=metrics,
               parameters=parameters, batches=batches)
 
-epochs = 10
-vf = 1  # verbose frequency
-pf = 10  # plot frequency
+epochs = 40000
+vf = 10  # verbose frequency
+pf = 1000  # plot frequency
 wb = False  # wandb logging
 
 configuration = {'#_total_initial_and_boundary_points': len(xb),
