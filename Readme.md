@@ -1,36 +1,35 @@
 ## Environment setup:
-   - python version: >= 3.10.
-__create the virtual environment using the following command__
-   - python3 -m venv pinto
-   - source ~/pinto/bin/activate
-   - pip install -r requirements.txt
+    __create the virtual environment using the following command__
+    - python version: >= 3.10.
+    - python3 -m venv pinto
+    - source ~/pinto/bin/activate
+    - pip install -r requirements.txt
 
 ## Documentation:
-- Each __Numerical Example folder__ consists of three subfolders: _Code_, _Post_Processing_, and _Trained_models_
-
+Each __Numerical Example folder__ consists of three subfolders: _Code_, _Post_Processing_, and _Trained_models_
 ### About Folders:
-- Numerical examples/
-  - Code/
-    - PINTO/ 
-      - model file, Pde file, utils 
-    - DeepONets/ 
-      - model file, Pde file, utils 
-  - Post_processing/ 
-    - Post_Processing.ipynb - contains the code for post-processing and plots in paper of corresponding test cases 
-  - Trained models/ 
-    - have the trained models of PINTO and DeepONets for corresponding test cases
+    - Numerical examples/
+      - Code/
+        - PINTO/ 
+          - model file, Pde file, utils 
+        - DeepONets/ 
+          - model file, Pde file, utils 
+      - Post_processing/ 
+        - Post_Processing.ipynb - contains the code for post-processing and plots in paper of corresponding test cases 
+      - Trained models/ 
+        - have the trained models of PINTO and DeepONets for corresponding test cases
 
 ### File Execution:
--Below links provide the data for Advection and Burgers equation.
- - [Advection PDEBENCH Dataset](https://darus.uni-stuttgart.de/file.xhtml?fileId=255672&version=8.0)
- - [Burger](https://indianinstituteofscience-my.sharepoint.com/:u:/g/personal/ksumanth_iisc_ac_in/EWeItMUTYulKit8tqgKnh44BzzUDxc-whoJadi2QjGLBuA?e=IYR3p0)
- - __Before running Advection/Burgers example make sure to give the correct path of data directory in model.py file (_data-dir_)__ 
+__Below links provide the data for Advection and Burgers equation.__
+- [Advection PDEBENCH Dataset](https://darus.uni-stuttgart.de/file.xhtml?fileId=255672&version=8.0)
+- [Burger](https://indianinstituteofscience-my.sharepoint.com/:u:/g/personal/ksumanth_iisc_ac_in/EWeItMUTYulKit8tqgKnh44BzzUDxc-whoJadi2QjGLBuA?e=IYR3p0)
+- __Before running Advection/Burgers example make sure to give the correct path of data directory in model.py file (_data-dir_)__
 - __Run the script.sh file it prompts for the required example and model to run the code.__
 
 # Detailed Documentation
   ## PdeModel class: 
-   -Attributes
-   - inputs: domain/boundary/initial coordinates for QPE units,
+    -Attributes
+    - inputs: domain/boundary/initial coordinates for QPE units,
              initial/boundary coordinates sequence for BPE units, initial/boundary conditions sequence for BVE units
      - outputs: scalar/vector quantities of our interest
      - model: PINTO/DeepONet model object (built using Tensorflow Functional API)
@@ -59,18 +58,26 @@ __create the virtual environment using the following command__
         -get_plots: to get the plots of the model predictions at regular intervals (plot_freq in run method defines the interval to plot)
 
   ## utils.py
+  ![Data generation](Data_generation.png)
   ### Data generation:
-   ![Data generation](Data_generation.png)
-   1. Collocation points are generated using Latin Hypercube Sampling (LHS) method
-   2. Boundary/initial points to impose boundary/initial conditions (either on grid points or randomly chosen points with the initial/boundary condition, 
-   __only for boundary and initial conditions simulation data file is used__)
-   3. boundary vector sequence points for BPE, and BVE units are chosen random on all sides of boundary 
-   4. For each collocation and initial/boundary point same boundary vector sequence is used as input to BPE and BVE units.
-   5. Above image give the example of data generation on 2D domain (X-Y).
-   - utils file has updated with detailed documentation in generating and creating the dataset to train the model.
-   - contains the functions to create the input coordinates for QPE, BPE, and BVE units.
-   - contains the functions to create the initial/boundary conditions for QPE, BPE, and BVE units.
+    1. Collocation points are generated using Latin Hypercube Sampling (LHS) method
+    2. Boundary/initial points to impose boundary/initial conditions (either on grid points or randomly chosen points with the initial/boundary condition, 
+    __only for boundary and initial conditions simulation data file is used__)
+    3. boundary vector sequence points for BPE, and BVE units are chosen random on all sides of boundary 
+    4. For each collocation and initial/boundary point same boundary vector sequence is used as input to BPE and BVE units.
+    5. Above image give the example of data generation on 2D domain (X-Y).
+
+    - utils file has updated with detailed documentation in generating and creating the dataset to train the model.
+    - contains the functions to create the input coordinates for QPE, BPE, and BVE units.
+    - contains the functions to create the initial/boundary conditions for QPE, BPE, and BVE units.
   ## model.py
-   - building the PINTO/DeepONet model using the Tensorflow Functional API
-   - initiating the optimizer and loss function
-   - initializing the PdeModel object
+     - building the PINTO/DeepONet model using the Tensorflow Functional API
+     - initiating the optimizer and loss function
+     - initializing the PdeModel object
+  ## Citations
+    If you use this work please cite:
+    @article{boya2024physics,
+    title={A physics-informed transformer neural operator for learning generalized solutions of initial boundary value problems},
+    author={Boya, Sumanth Kumar and Subramani, Deepak},
+    journal={arXiv preprint arXiv:2412.09009},
+    year={2024}} 
