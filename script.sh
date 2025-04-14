@@ -50,10 +50,10 @@ elif [ "$choice" = "4" ]; then
   fi
 elif [ "$choice" = "5" ]; then
   if [ "$model_choice" = "1" ]; then
-    main_folder="LidDrivenCavity/Code/PINTO"
+    main_folder="Lid-Driven/Code/PINTO"
     echo "Using PINTO for Lid-Driven Cavity Flow"
   else
-    main_folder="LidDrivenCavity/Code/PI-DeepONet"
+    main_folder="Lid-Driven/Code/PI-DeepONet"
     echo "Using PI-DeepONets for Lid-Driven Cavity Flow"
   fi
 else
