@@ -77,7 +77,7 @@ spq = sp_trans(sp)
 residual = spq
 
 # Trunck network
-input4 = keras.Input(shape=(sensor_samples,), name='Ubc_layer')
+input4 = keras.Input(shape=(seq_len,), name='Ubc_layer')
 rescale_input4 = layers.Rescaling(scale=1/3, offset=0)(input4)
 
 # output model for u-function
