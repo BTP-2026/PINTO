@@ -1,10 +1,20 @@
 ## Environment setup:
-__Navigate to the directory where the code is cloned__
+### installing python3.10.x:
+    sudo apt update
+    sudo apt install software-properties-common
+    sudo add-apt-repository ppa:deadsnakes/ppa
+    sudo apt install python3.10
+    
+    python3.10 --version
+### Try creating the virtual environment with python3.10 if there is error then follow the below steps:
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+    python3.10 get-pip.py
 ### creating the virtual environment (make sure to use python version == 3.10.x):
-    python3 -m venv pinto
+    python3.10 -m venv pinto
     source ~/pinto/bin/activate
-    pip install -r requirements.txt
 
+#### Navigate to the directory where the code is cloned
+     pip install -r environment.txt
 ## Documentation:
 Each __Numerical Example folder__ consists of three subfolders: _Code_, _Post_Processing_, and _Trained_models_
 ### About Folders:
