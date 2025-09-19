@@ -16,9 +16,21 @@ from PINTO_Pde import PdeModel
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
+wandb.login(key="b52d765c1694df3d9a938427b8a0efec0d369688")
 # Data PreProcessing
 # getting data in required format from utils.py
-data_dir = None  # change the directory to your local directory where PDEBENCH Advection file presents.
+data_dir = '/home/PINTO/dataset'  # change the directory to your local directory where PDEBENCH Advection file presents.
+
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        print("Using GPU:", gpus)
+    except RuntimeError as e:
+        print(e)
+else:
+    print("No GPU detected, training will run on CPU")
 
 # hyperparameters for data generation
 train_indices = np.arange(80)
@@ -149,7 +161,7 @@ cm = PdeModel(inputs=ivals, outputs=ovals, get_models=model_dict, loss_fn=loss_f
               optimizer=optimizer, metrics=metrics,
               parameters=parameters, batches=batches)
 
-epochs = 20000
+epochs = 10000
 vf = 100  # verbose frequency
 pf = 1000  # plot frequency
 wb = True  # wandb logging

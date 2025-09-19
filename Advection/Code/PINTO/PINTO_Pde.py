@@ -140,19 +140,13 @@ class PdeModel:
         self.val_residual_loss_tracker.reset_state()
 
     def get_model_graph(self, log_dir, wb=False):
-
-        keras.utils.plot_model(self.nn_model, to_file=log_dir + '_nn_model.png',
-                               show_shapes=True)
-
-        if wb:
-            wandb.log({"nn_model": wandb.Image(log_dir + '_nn_model.png')})
+        pass
 
     def run(self, epochs, ddir, log_dir, idx_sensor, wb=False, verbose_freq=1000, plot_freq=10000,
             validation_freq=1000):
 
         history = {"loss": [], "residual_loss": [], "bound_loss": [], "init_loss": []}
         val_history = {"val_loss": [], "val_data_loss": [], "val_res_loss": []}
-        start_time = time.time()
 
         self.get_model_graph(log_dir=log_dir, wb=wb)
         beta = self.parameters['beta']
@@ -163,12 +157,11 @@ class PdeModel:
         sol_data, xdisc, t_coord = read_h5_file(ddir)
 
         for epoch in range(epochs):
-
+            start_time = time.time()
             self.reset_metrics()
 
             for j, (init_data, bound_data, inner_data) in enumerate(zip(
                     self.init_data, self.bound_data, self.inner_data)):
-
                 logs = self.train_step(init_data, bound_data, inner_data, beta)
 
             if wb:
@@ -185,14 +178,13 @@ class PdeModel:
             if (epoch+1) % validation_freq == 0:
                 for key, value in val_logs.items():
                     val_history[key].append(value.numpy())
-            if (epoch + 1) % verbose_freq == 0:
-                print(f'''Epoch:{epoch + 1}/{epochs}''')
-                for key, value in logs.items():
+            print(f'''Epoch:{epoch + 1}/{epochs}''')
+            for key, value in logs.items():
+                print(f"{key}: {value:.4f} ", end="")
+            if (epoch + 1) % validation_freq == 0:
+                for key, value in val_logs.items():
                     print(f"{key}: {value:.4f} ", end="")
-                if (epoch + 1) % validation_freq == 0:
-                    for key, value in val_logs.items():
-                        print(f"{key}: {value:.4f} ", end="")
-                print(f"Time: {tae / 60:.4f}min")
+            print(f"Time: {tae / 60:.4f}min")
             if (epoch + 1) % plot_freq == 0:
                 for i in ts_ind:
                     u_sen = sol_data[i, 0, id_sen].reshape(1, -1)
