@@ -3,7 +3,8 @@ import h5py as h5
 import argparse
 import time
 from scalar import ScalarGenerator1D
-from solver import PoissonSolver1D
+from solver import PoissonSolver1D, Classic1DPoissonSolver
+
 
 def main():
     parser = argparse.ArgumentParser(description='Generate 1D Poisson equation training data')
@@ -73,7 +74,7 @@ def main():
     
     generation_time = time.time() - start_time
     print(f"Generated random fields in {generation_time:.2f} seconds")
-    
+
     # Initialize solver
     print("Initializing Poisson solver...")
     solver = PoissonSolver1D()
