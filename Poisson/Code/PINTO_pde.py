@@ -126,9 +126,6 @@ class PdeModel:
             # Boundary loss
             bound_loss = self.loss_fn(p_bc, p_bc_pred)
             
-            # Supervised loss (optional, can be weighted)
-            supervised_loss = self.loss_fn(p_init, p_init_pred)
-
             # Total loss: residual + boundary (+ optional supervised)
             loss = residual_loss + bound_loss
 
